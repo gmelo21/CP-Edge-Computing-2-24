@@ -1,0 +1,603 @@
+// Feito por Guilherme Melo.
+
+//Bibliotecas:
+#include <LiquidCrystal.h>
+#include "DHT.h"
+
+//Configurando o DHT:
+#define DHTPIN 8
+#define DHTTYPE DHT22
+
+//Variáveis:
+const int rs = 2;
+const int en = 3;
+const int d4 = 4;
+const int d5 = 5;
+const int d6 = 6;
+const int d7 = 7;
+const int LDR = A0;             
+const int redLight = 13;  
+const int yellowLight = 12;   
+const int greenLight = 11; 
+const int buzzer = 9;
+unsigned long sumTime;
+unsigned long averageTime;
+unsigned long screenTime;
+float averageLightLevel = 0;
+float averageTemperatureLevel = 0;
+float averageHumidityLevel = 0;
+int lightLevelSum = 0;
+int temperatureLevelSum = 0;
+int humidityLevelSum = 0;
+bool lightProblem = false;
+bool humidityProblem = false;
+bool temperatureProblem = false;
+String lightCondition = " ";
+String temperatureCondition = " ";
+String humidityCondition = " ";
+float temperature;
+float humidity;
+float light;
+int currentScreen = 1;
+
+//Sprites do LCD:
+byte F1L0C0[] = { B00000, B00000, B00001, B00001, B00010, B00010, B00100, B00100 };
+byte F1L0C1[] = { B01100, B10010, B00001, B00001, B01100, B10010, B10010, B10010 };
+byte F1L0C2[] = { B00000, B00000, B00000, B00000, B10000, B10000, B01000, B01000 };
+byte F1L1C0[] = { B00011, B00000, B00000, B00000, B00000, B00000, B00000, B00000 };
+byte F1L1C1[] = { B10011, B10010, B10010, B10010, B10010, B01100, B00000, B00000 };
+byte F1L1C2[] = { B10000, B00000, B00000, B00000, B00000, B00000, B00000, B00000 };
+byte F2L0C0[] = { B00000, B00000, B00001, B00111, B00010, B00010, B00100, B00100 };
+byte F2L0C2[] = { B00000, B00000, B00000, B11000, B10000, B10000, B01000, B01000 };
+byte F3L0C0[] = { B00000, B00000, B00001, B01111, B10010, B10010, B01100, B00100 };
+byte F3L0C2[] = { B00000, B00000, B00000, B11110, B10000, B10000, B01110, B01000 };
+byte F4L0C2[] = { B00000, B00000, B00000, B11111, B10000, B10000, B01111, B01000 };
+byte F4L0C3[] = { B00000, B00000, B00000, B10000, B00000, B00000, B10000, B00000 };
+byte F5L0C3[] = { B00000, B00000, B00000, B11100, B00000, B00000, B11100, B00000 };
+byte F6L0C3[] = { B00000, B00000, B00000, B11111, B00000, B00000, B11111, B00000 };
+byte F7L0C4[] = { B00000, B00000, B11000, B00000, B00000, B00000, B00000, B11000 };
+byte F8L0C4[] = { B00000, B00000, B11000, B00110, B00000, B00000, B00110, B11000 };
+byte F9L0C4[] = { B00000, B00000, B11000, B00110, B00001, B00001, B00110, B11000 };
+byte F10L0C0[] = { B00000, B00000, B00000, B01111, B10000, B10000, B01111, B00001 };
+byte F10L0C1[] = { B00011, B00100, B01000, B01000, B10011, B10100, B00111, B00110 };
+byte F10L0C2[] = { B00000, B10000, B01000, B01111, B00100, B10100, B10011, B10010 };
+byte F10L0C3[] = { B00000, B00000, B00000, B11111, B00000, B00000, B11111, B00000 };
+byte F10L0C4[] = { B00000, B00000, B11000, B00110, B00001, B00001, B00110, B11000 };
+byte F10L1C1[] = { B11010, B10010, B10010, B10010, B10010, B01100, B00000, B00000 };
+byte F10L1C2[] = { B01100, B00000, B00000, B00000, B00000, B00000, B00000, B00000 };
+byte F11L0C0[] = { B00000, B00000, B00000, B01111, B10000, B10000, B01111, B00000 };
+byte F11L0C1[] = { B00000, B00001, B00010, B11110, B00100, B00101, B11011, B11011 };
+byte F11L0C2[] = { B11000, B00100, B00010, B00011, B11001, B00101, B11100, B00100 };
+byte F11L0C3[] = { B00000, B00000, B00000, B11111, B00000, B00000, B11111, B10000 };
+byte F11L1C1[] = { B10110, B10010, B10010, B10010, B10010, B01100, B00000, B00000 };
+byte F11L1C2[] = { B00011, B00000, B00000, B00000, B00000, B00000, B00000, B00000 };
+byte F12L0C1[] = { B00000, B00000, B00000, B11111, B00001, B00001, B10011, B10010 };
+byte F12L0C2[] = { B00110, B01001, B10000, B10000, B00110, B01001, B11111, B01001 };
+byte F12L0C3[] = { B00000, B00000, B10000, B11111, B01000, B01000, B00111, B00100 };
+byte F12L1C1[] = { B10011, B10010, B10010, B10010, B10010, B01100, B00000, B00000 };
+byte F12L1C2[] = { B10000, B00000, B00000, B00000, B00000, B00000, B00000, B00000 };
+byte F12L1C3[] = { B11000, B00000, B00000, B00000, B00000, B00000, B00000, B00000 };
+byte L1L0C0[] = { B00000, B00000, B00001, B00011, B00010, B00010, B00100, B00100 };
+byte L2L0C0[] = { B00000, B00000, B00001, B01111, B00010, B00010, B01100, B00100 };
+byte P1L0C4[] = { B00000, B00000, B10000, B00000, B00000, B00000, B00000, B10000 };
+byte P2L0C4[] = { B00000, B00000, B11000, B00100, B00000, B00000, B00100, B11000 };
+byte LIGHT_HIGH_LEFT[] = { B00000, B00010, B10010, B01000, B00011, B00100, B01000, B01001 };
+byte LIGHT_HIGH_RIGHT[] = { B00000, B01000, B01001, B00010, B11000, B00100, B00010, B10010 };
+byte LIGHT_BOTTOM_LEFT[] = { B01011, B01001, B00101, B00011, B00011, B00011, B00001, B00000 };
+byte LIGHT_BOTTOM_RIGHT[] = { B11010, B10010, B10100, B11000, B11000, B11000, B10000, B00000 };
+byte LIGHT_MEDIUM_LEFT[] = { B00000, B00000, B00010, B01000, B00011, B00100, B01000, B01001 };
+byte LIGHT_MEDIUM_RIGHT[] = { B00000, B00000, B01000, B00010, B11000, B00100, B00010, B10010 };
+byte LIGHT_LOW_LEFT[] = { B00000, B00000, B00000, B00000, B00011, B00100, B01000, B01001 };
+byte LIGHT_LOW_RIGHT[] = { B00000, B00000, B00000, B00000, B11000, B00100, B00010, B10010 };
+byte HUMIDITY_TOP_LEFT[] = { B00000, B00000, B00000, B00000, B00011, B00100, B00010, B00010 };
+byte HUMIDITY_TOP_RIGHT[] = { B00000, B00000, B00000, B00000, B00000, B10000, B01000, B01000 };
+byte HUMIDITY_LOW_LEFT[] = { B00100, B00100, B01000, B01000, B01111, B00111, B00011, B00000 };
+byte HUMIDITY_LOW_RIGHT[] = { B00100, B00100, B00010, B00010, B11110, B11100, B11000, B00000 };
+byte HUMIDITY_MEDIUM_LEFT[] = { B00100, B00100, B01111, B01111, B01111, B00111, B00011, B00000 };
+byte HUMIDITY_MEDIUM_RIGHT[] = { B00100, B00100, B11110, B11110, B11110, B11100, B11000, B00000 };
+byte HUMIDITY_HIGH_LEFT[] = { B00111, B00111, B01111, B01111, B01111, B00111, B00011, B00000 };
+byte HUMIDITY_HIGH_RIGHT[] = { B11100, B11100, B11110, B11110, B11110, B11100, B11000, B00000 };
+byte TEMPERATURE_TOP_LEFT[] = { B00000, B00000, B00000, B00000, B00001, B00010, B00010, B00010 };
+byte TEMPERATURE_TOP_RIGHT[] = { B00000, B00000, B00000, B00000, B10000, B01000, B11000, B01000 };
+byte TEMPERATURE_LOW_LEFT[] = { B00010, B00010, B00010, B00100, B00111, B00111, B00011, B00000 };
+byte TEMPERATURE_LOW_RIGHT[] = { B11000, B01000, B01000, B00100, B11100, B11100, B11000, B00000 };
+byte TEMPERATURE_MEDIUM_LEFT[] = { B00010, B00010, B00011, B00111, B00111, B00111, B00011, B00000 };
+byte TEMPERATURE_MEDIUM_RIGHT[] = { B11000, B01000, B11000, B11100, B11100, B11100, B11000, B00000 };
+byte TEMPERATURE_HIGH_LEFT[] = { B00011, B00011, B00011, B00111, B00111, B00111, B00011, B00000 };
+byte TEMPERATURE_HIGH_RIGHT[] = { B11000, B11000, B11000, B11100, B11100, B11100, B11000, B00000 };
+
+//Configurando o hardware:
+DHT dht(DHTPIN, DHTTYPE);
+LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+
+void setup() {
+  //Estabelecendo a comunicação com o Serial, caso necessário:
+  Serial.begin(115200);
+
+  //Iniciando o LCD e DHT:
+  lcd.begin(16, 2);
+  dht.begin();
+
+  //Meio de comunicação com as peças:
+  pinMode(buzzer, OUTPUT);
+  pinMode(redLight, OUTPUT);         
+  pinMode(yellowLight, OUTPUT);
+  pinMode(greenLight, OUTPUT);
+  pinMode(LDR, INPUT);
+
+  //Configurando variáveis de timer:
+  sumTime = millis();
+  averageTime = millis();   
+  screenTime = millis();
+  
+  // Ínicio da animação de Startup.
+
+  // 1 frame:
+  lcd.createChar(0, F1L0C0);
+  lcd.createChar(1, F1L0C1);
+  lcd.createChar(2, F1L0C2);
+  lcd.createChar(7, F1L1C0);
+  lcd.createChar(5, F1L1C1);
+  lcd.createChar(6, F1L1C2);
+
+  lcd.setCursor(0, 0);
+  lcd.write(byte(0));
+  lcd.write(byte(1));
+  lcd.write(byte(2));
+  lcd.setCursor(0, 1);
+  lcd.write(byte(7));
+  lcd.write(byte(5));
+  lcd.write(byte(6));
+  delay(1000);
+
+  // Left side 1 frame.
+  lcd.createChar(0, L1L0C0);
+
+  lcd.setCursor(0, 0);
+  lcd.write(byte(0));
+  delay(35);
+
+  lcd.createChar(0, F2L0C0);
+
+  lcd.setCursor(0, 0);
+  lcd.write(byte(0));
+  delay(65);
+
+  // Left side 2 frame.
+  lcd.createChar(0, L2L0C0);
+
+  lcd.setCursor(0, 0);
+  lcd.write(byte(0));
+  delay(85);
+
+  lcd.createChar(0, F3L0C0);
+
+  lcd.setCursor(0, 0);
+  lcd.write(byte(0));
+  delay(250);
+
+  // 2 frame.
+  lcd.createChar(2, F2L0C2);
+
+  lcd.setCursor(2, 0);
+  lcd.write(byte(2));
+  delay(15);
+
+  // 3 frame.
+  lcd.createChar(2, F3L0C2);
+
+  lcd.setCursor(2, 0);
+  lcd.write(byte(2));
+  delay(25);
+
+    // 4 frame.
+  lcd.createChar(2, F4L0C2);
+  lcd.createChar(3, F4L0C3);
+
+  lcd.setCursor(2, 0);
+  lcd.write(byte(2));
+  lcd.setCursor(3, 0);
+  lcd.write(byte(3));
+  delay(40);
+
+    // 5 frame.
+  lcd.createChar(3, F5L0C3);
+
+  lcd.setCursor(3, 0);
+  lcd.write(byte(3));
+  delay(60);
+  
+    // 6 frame.
+  lcd.createChar(3, F6L0C3);
+
+  lcd.setCursor(3, 0);
+  lcd.write(byte(3));
+  delay(75);
+  
+    //  7 frame.
+  lcd.createChar(4, P1L0C4);
+
+  lcd.setCursor(4, 0);
+  lcd.write(byte(4));
+  delay(85);
+
+  lcd.createChar(4, F7L0C4);
+
+  lcd.setCursor(4, 0);
+  lcd.write(byte(4));
+  delay(90);
+
+    //  8 frame.
+  lcd.createChar(4, P2L0C4);
+
+  lcd.setCursor(4, 0);
+  lcd.write(byte(4));
+  delay(100);
+
+  lcd.createChar(4, F8L0C4);
+
+  lcd.setCursor(4, 0);
+  lcd.write(byte(4));
+  delay(100);
+
+    //  9 frame.
+  lcd.createChar(4, F9L0C4);
+
+  lcd.setCursor(4, 0);
+  lcd.write(byte(4));
+  delay(150);
+  
+  lcd.setCursor(6, 0);
+  lcd.print("T");
+  delay(50);
+  lcd.print("E");
+  delay(50);
+  lcd.print("C");
+  delay(50);
+  lcd.print("H");
+  delay(100);
+
+    //  10 frame.
+  lcd.createChar(0, F10L0C0);
+  lcd.createChar(1, F10L0C1);
+  lcd.createChar(2, F10L0C2);
+  lcd.createChar(3, F10L0C3);
+  lcd.createChar(4, F10L0C4);
+  lcd.createChar(5, F10L1C1);
+  lcd.createChar(6, F10L1C2);
+
+  lcd.setCursor(0, 0);
+  lcd.write(byte(0));
+  lcd.write(byte(1));
+  lcd.write(byte(2));
+  lcd.write(byte(3));
+  lcd.write(byte(4));
+  lcd.setCursor(0, 1);
+  lcd.print(" ");
+  lcd.write(byte(5));
+  lcd.write(byte(6));
+  delay(25);
+
+      //  11 frame.
+  lcd.createChar(0, F11L0C0);
+  lcd.createChar(1, F11L0C1);
+  lcd.createChar(2, F11L0C2);
+  lcd.createChar(3, F11L0C3);
+  lcd.createChar(5, F11L1C1);
+  lcd.createChar(6, F11L1C2);
+
+  lcd.setCursor(0, 0);
+  lcd.write(byte(0));
+  lcd.write(byte(1));
+  lcd.write(byte(2));
+  lcd.write(byte(3));
+  lcd.setCursor(1, 1);
+  lcd.write(byte(5));
+  lcd.write(byte(6));
+  delay(50);
+
+    //  12 frame.
+  lcd.createChar(1, F12L0C1);
+  lcd.createChar(2, F12L0C2);
+  lcd.createChar(3, F12L0C3);
+  lcd.createChar(5, F12L1C1);
+  lcd.createChar(6, F12L1C2);
+  lcd.createChar(7, F12L1C3);
+
+  lcd.setCursor(1, 0);
+  lcd.write(byte(1));
+  lcd.write(byte(2));
+  lcd.write(byte(3));
+  lcd.setCursor(1, 1);
+  lcd.write(byte(5));
+  lcd.write(byte(6));
+  lcd.write(byte(7));
+  delay(150);
+
+  //  Último frame.
+  lcd.setCursor(6, 1);
+  lcd.print("A");
+  delay(50);
+  lcd.print("L");
+  delay(50);
+  lcd.print("L");
+  delay(50);
+  lcd.print("I");
+  delay(50);
+  lcd.print("A");
+  delay(50);
+  lcd.print("N");
+  delay(50);
+  lcd.print("C");
+  delay(50);
+  lcd.print("E");
+  delay(2000);
+
+  lcd.setCursor(6, 0);
+  lcd.print("U");
+  delay(50);
+  lcd.print("P");
+  delay(50);
+  lcd.print("W");
+  delay(50);
+  lcd.print("A");
+  delay(50);
+  lcd.print("R");
+  delay(50);
+  lcd.print("D");
+  delay(150);
+  lcd.print(" ");
+  delay(50);
+  lcd.print("&");
+  delay(150);
+
+  lcd.setCursor(6, 1);
+  lcd.print("O");
+  delay(50);
+  lcd.print("N");
+  delay(50);
+  lcd.print("W");
+  delay(50);
+  lcd.print("A");
+  delay(50);
+  lcd.print("R");
+  delay(50);
+  lcd.print("D");
+  delay(50);
+  lcd.print(".");
+  delay(50);
+  lcd.print(" ");
+  delay(2000);
+
+  lcd.clear();
+  delay(1000);
+}
+
+// Fim da animação de Startup.
+
+void loop() {
+  //Mapeia os valores dos sensores para números de 0 a 10:
+  float temperature = map(dht.readTemperature(), -50, 50, 0, 100);
+  float humidity = map(dht.readHumidity(), 0, 100, 0, 100);
+  float light = map(analogRead(LDR), 1015, 500, 0, 100);
+
+  //A cada 500 milisegundos, soma o valor do correspondente sensor à variável:
+  if ((millis() - sumTime) > 500) {
+    lightLevelSum += light;
+    temperatureLevelSum += temperature;
+    humidityLevelSum += humidity;
+    sumTime = millis();
+  }
+    
+  //A cada 5 segundos, faz a média dos últimos 10 valores:
+  if ((millis() - averageTime) > 5000) {
+    averageLightLevel = lightLevelSum / 10;
+    averageTemperatureLevel = temperatureLevelSum / 10;
+    averageHumidityLevel = humidityLevelSum / 10;
+    lightLevelSum = 0;
+    temperatureLevelSum = 0;
+    humidityLevelSum = 0;
+    averageTime = millis();
+  }
+
+  //Ínicio do programa vísivel ao usuário:
+
+  /* Espera o programa estar ativo faz 15 segundos para poder começar à
+  os valores. Caso não, espera o tempo necessário para os sensores poderem
+  obter uma média prévia da situação. */
+  if (millis() < 15000) {
+
+    lcd.setCursor(0,0);
+    lcd.print(" - CARREGANDO -");
+    lcd.setCursor(6,1);
+    lcd.print("....");
+
+    averageLightLevel = 0;
+    averageTemperatureLevel = 60;
+    averageHumidityLevel = 50;
+  } else {
+
+  /* Ínicio da verificação de luminosidade, só muda os LEDS caso outros
+  sensores prioritários (umidade e temperatura) estejam OK. */
+    if (averageLightLevel > 55) { 
+      if (temperatureProblem == false && humidityProblem == false) {  
+        digitalWrite(redLight, HIGH);  
+        digitalWrite(yellowLight, LOW);
+        digitalWrite(greenLight, LOW);
+      }
+      lightCondition = " ALTA, ALERTA  ";
+      lcd.createChar(0, LIGHT_HIGH_LEFT);
+      lcd.createChar(1, LIGHT_HIGH_RIGHT);
+      lightProblem = true;
+      tone(buzzer, 500, 500);
+    }
+
+    if (averageLightLevel >= 30 && 55 >= averageLightLevel) {  
+      if (temperatureProblem == false && humidityProblem == false) {  
+        digitalWrite(redLight, LOW);   
+        digitalWrite(yellowLight, HIGH);
+        digitalWrite(greenLight, LOW);
+      }
+      lightCondition = " MEDIA        ";
+      lcd.createChar(0, LIGHT_MEDIUM_LEFT);
+      lcd.createChar(1, LIGHT_MEDIUM_RIGHT);
+      lightProblem = true;
+    }
+      
+    if (averageLightLevel < 30) {  
+      if (temperatureProblem == false && humidityProblem == false) {  
+        digitalWrite(redLight, LOW);   
+        digitalWrite(yellowLight, LOW);
+        digitalWrite(greenLight, HIGH);
+      }
+      lightCondition = " IDEAL        ";
+      lcd.createChar(0, LIGHT_LOW_LEFT);
+      lcd.createChar(1, LIGHT_LOW_RIGHT);
+      lightProblem = false;
+    }
+  //Fim da verificação de luminosidade.
+
+  //Ínicio da verificação de umidade.
+    if (averageHumidityLevel > 70) { 
+      humidityCondition = " ALTA, ALERTA  ";
+      lcd.createChar(2, HUMIDITY_HIGH_LEFT);
+      lcd.createChar(3, HUMIDITY_HIGH_RIGHT);
+      humidityProblem = true;
+    }
+      
+    if (averageHumidityLevel >= 50 && 70 >= averageHumidityLevel) {  
+      humidityCondition = " IDEAL        ";
+      lcd.createChar(2, HUMIDITY_MEDIUM_LEFT);
+      lcd.createChar(3, HUMIDITY_MEDIUM_RIGHT);
+      humidityProblem = false;
+    }
+      
+    if (averageHumidityLevel < 50) {  
+      humidityCondition = " BAIXA, ALERTA";
+      lcd.createChar(2, HUMIDITY_LOW_LEFT);
+      lcd.createChar(3, HUMIDITY_LOW_RIGHT);
+      humidityProblem = true;
+    }
+  //Fim da verificação de uumidade.
+
+  //Ínicio da verificação de temperatura.
+    if (averageTemperatureLevel > 65) { 
+      temperatureCondition = " ALTA, ALERTA  ";
+      lcd.createChar(4, TEMPERATURE_HIGH_LEFT);
+      lcd.createChar(5, TEMPERATURE_HIGH_RIGHT);
+      temperatureProblem = true;
+    }
+      
+    if (averageTemperatureLevel >= 60 && 65 >= averageTemperatureLevel) {  
+      temperatureCondition = " IDEAL        ";
+      lcd.createChar(4, TEMPERATURE_MEDIUM_LEFT);
+      lcd.createChar(5, TEMPERATURE_MEDIUM_RIGHT);
+      temperatureProblem = false;
+    }
+      
+    if (averageTemperatureLevel < 60) {  
+      temperatureCondition = " BAIXA, ALERTA";
+      lcd.createChar(4, TEMPERATURE_LOW_LEFT);
+      lcd.createChar(5, TEMPERATURE_LOW_RIGHT);
+      temperatureProblem = true;
+    }
+  //Fim da verificação de temperatura.
+
+  /* Liga os LEDs corretos caso estejamos em alguma situação de alerta.
+  Nesse caso, o LED vermelho é somente para a umidade, o amarelo somente
+  para a temperatura, e o verde somente para quando a luminosidade esteja ideal.*/
+    if (humidityProblem == true || temperatureProblem == true) {
+      if (humidityProblem == true) {
+        digitalWrite(redLight, HIGH);   
+      } else {
+        digitalWrite(redLight, LOW);   
+      }
+      if (temperatureProblem == true) {
+        digitalWrite(yellowLight, HIGH);   
+      } else {
+        digitalWrite(yellowLight, LOW);   
+      }
+      if (lightProblem == false) {
+        digitalWrite(greenLight, HIGH);   
+      } else {
+        digitalWrite(greenLight, LOW);   
+      }
+    }
+
+  // Toca o buzzer caso a temperatura ou umidade esteja impróprio:
+    if (humidityProblem == true || temperatureProblem == true) {
+      tone(buzzer, 500, 500);
+    }
+
+  /* Exibe os valores de cada sensor no display, rodando uma vez a cada
+  5 segundos, e cada vez, mostrando um sensor diferente. */
+  // Luz -> Umidade -> Temperatura -> Luz...
+    if ((millis() - screenTime) > 5000) {
+
+      // Luz:
+      if (currentScreen == 1) {
+        lcd.clear();
+        lcd.createChar(6, LIGHT_BOTTOM_LEFT);
+        lcd.createChar(7, LIGHT_BOTTOM_RIGHT);
+
+        lcd.setCursor(0,0);
+        lcd.write(byte(0));
+        lcd.write(byte(1));
+        lcd.print(lightCondition);
+        lcd.setCursor(0,1);
+        lcd.write(byte(6));
+        lcd.write(byte(7));
+
+        currentScreen += 1;
+      }
+
+      // Umidade:
+      else if (currentScreen == 2) {
+        lcd.clear();
+        lcd.createChar(6, HUMIDITY_TOP_LEFT);
+        lcd.createChar(7, HUMIDITY_TOP_RIGHT);
+
+        lcd.setCursor(0,1);
+        lcd.write(byte(2));
+        lcd.write(byte(3));
+        lcd.print(" ");
+        lcd.print(round(averageHumidityLevel));
+        lcd.print("%");
+        lcd.setCursor(0,0);
+        lcd.write(byte(6));
+        lcd.write(byte(7));
+
+        lcd.print(humidityCondition);
+
+        currentScreen += 1;
+      }
+
+      // Temperatura, em Celsius e em Fahrenheit.:
+      else if (currentScreen == 3) {    
+        lcd.clear();  
+        lcd.createChar(6, TEMPERATURE_TOP_LEFT);
+        lcd.createChar(7, TEMPERATURE_TOP_RIGHT);
+
+        lcd.setCursor(0,1);
+        lcd.write(byte(4));
+        lcd.write(byte(5));
+        lcd.print(" ");
+        lcd.print(round((100 * (averageTemperatureLevel / 100)) - 50));
+        lcd.print("C");
+        lcd.print(" - ");
+        lcd.print(round((((100 * (averageTemperatureLevel / 100)) - 50) * 9/5) + 32));
+        lcd.print("F");
+        lcd.setCursor(0,0);
+        lcd.write(byte(6));
+        lcd.write(byte(7));
+        lcd.print(temperatureCondition);
+
+        currentScreen = 1;
+      }
+
+    screenTime = millis();
+
+    }
+  }
+
+}
